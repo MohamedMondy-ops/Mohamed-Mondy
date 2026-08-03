@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة التوزيع الذكية (ERP)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #3b82f6; --primary-hover: #2563eb;
+            --success-color: #10b981; --danger-color: #ef4444; --warning-color: #f59e0b;
+            --bg-color: #f1f5f9; --card-bg: #ffffff; --text-color: #334155;
+            --text-muted: #64748b; --border-color: #e2e8f0; --input-bg: #f8fafc;
+            --table-header: #f8fafc; --table-hover: #e2e8f0; --upload-bg: #eff6ff; --header-bg: #ffffff;
+        }
+        [data-theme="dark"] {
+            --primary-color: #3b82f6; --primary-hover: #60a5fa;
+            --success-color: #10b981; --danger-color: #ef4444; --warning-color: #f59e0b;
+            --bg-color: #020617; --card-bg: #0f172a; --text-color: #f8fafc;
+            --text-muted: #94a3b8; --border-color: #1e293b; --input-bg: #020617;
+            --table-header: #0f172a; --table-hover: #1e293b; --upload-bg: rgba(59, 130, 246, 0.05); --header-bg: #0f172a;      
+        }
+        
+        *:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; } 
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 8px; } 
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
+        
+        body { font-family: 'Cairo', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; font-size: 12px; transition: background-color 0.4s, color 0.4s; display: flex; flex-direction: column; min-height: 100vh;}
+        
+        .app-header { background: var(--header-bg); padding: 0 15px; display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; right: 0; left: 0; height: 50px; z-index: 1000; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-container img { height: 32px; width: auto; border-radius: 6px; padding: 2px; transition: 0.3s; object-fit: contain; }
+        [data-theme="dark"] .logo-container img { filter: drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.5)); }
+        
+        .app-header h1 { margin: 0; font-size: 15px; font-weight: 800; }
+        
+        .theme-switch-wrapper { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11px; }
+        .theme-switch { display: inline-block; height: 20px; position: relative; width: 40px; }
+        .theme-switch input { display: none; }
+        .slider { background-color: var(--border-color); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 34px; padding: 0 3px; display: flex; align-items: center; }
+        .slider:before { background-color: #fff; bottom: 2px; content: ""; height: 16px; left: 3px; position: absolute; transition: .4s; width: 16px; border-radius: 50%; z-index: 2; }
+        input:checked + .slider { background-color: var(--primary-color); } input:checked + .slider:before { transform: translateX(18px); }
+        
+        .layout { display: flex; margin-top: 50px; padding: 12px; gap: 12px; flex: 1; }
+        .sidebar { position: fixed; right: 12px; top: 62px; bottom: 12px; width: 250px; background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color); box-sizing: border-box; overflow-y: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.02); z-index: 80; }
+        .main-content { margin-right: 262px; width: calc(100% - 262px); box-sizing: border-box; display: flex; flex-direction: column; }
+        .main-content.full-width { margin-right: 0; width: 100%; }
+        
+        @media (max-width: 900px) {
+            .layout { flex-direction: column; margin-top: 55px; padding: 10px; gap: 10px; }
+            .sidebar { position: static; width: 100%; height: auto; margin-bottom: 10px; }
+            .main-content { margin-right: 0; width: 100%; }
+        }
+
+        .tabs-header { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; border-bottom: 2px solid var(--border-color); margin-bottom: 12px; position: sticky; top: 50px; z-index: 90; background: var(--bg-color); }
+        .tab-btn { background: transparent; border: none; color: var(--text-muted); font-family: 'Cairo'; font-size: 13px; font-weight: 800; cursor: pointer; padding: 6px 14px; border-radius: 6px; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3); }
+        .tab-content { display: none; flex: 1; } .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; } @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        h3 { color: var(--text-color); margin-top: 0; font-size: 14px; font-weight: 800; padding-bottom: 8px;}
+        
+        .file-upload { padding: 15px 10px; border: 2px dashed var(--border-color); text-align: center; border-radius: 8px; background-color: var(--upload-bg); cursor: pointer; transition: 0.2s; }
+        .file-upload.dragover { background-color: var(--table-hover); border-color: var(--primary-color); }
+        .file-upload p { color: var(--primary-color); font-weight: 800; margin: 5px 0; font-size: 11px;}
+        
+        .selectedFilesText { margin-top: 8px; font-size: 11px; color: var(--primary-color); font-weight: 700; text-align: center; }
+        .file-list-container { margin-top: 10px; display: none; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); padding: 5px 8px; margin-bottom: 4px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 10px; font-weight: 600; }
+        .remove-file-btn { background: rgba(225, 29, 72, 0.1); color: var(--danger-color); border: none; border-radius: 4px; padding: 2px 4px; cursor: pointer; font-size: 10px; font-weight: 700; }
+        .clear-all-btn { width: 100%; background: transparent; border: 1px dashed var(--danger-color); color: var(--danger-color); padding: 6px; border-radius: 6px; cursor: pointer; font-family: 'Cairo'; font-weight: 700; margin-top: 8px; font-size: 11px; }
+
+        .dashboard-bar { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(90deg, var(--bg-color), var(--table-hover)); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px; flex-wrap: wrap; gap: 8px;}
+        .dash-item { text-align: center; flex: 1; border-left: 1px solid var(--border-color); min-width: 80px; } .dash-item:last-child { border-left: none; }
+        @media (max-width: 600px) { .dash-item { border-left: none; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; } .dash-item:last-child { border-bottom: none; } }
+        .dash-label { display: block; font-size: 10px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
+        .dash-val { font-size: 20px; font-weight: 800; color: var(--text-color); }
+        
+        #liveAssigned { color: var(--primary-color); } #liveGari { color: var(--success-color); } #liveEada { color: var(--warning-color); } #totalNum { color: var(--text-color); } #dupNum { color: var(--danger-color); } #netNum { color: var(--success-color); }
+        
+        .table-responsive { max-height: 300px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0; direction: ltr; margin-bottom: 15px; }
+        table { direction: rtl; width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 6px 8px; text-align: center; font-size: 11px; border-bottom: 1px solid var(--border-color); color: var(--text-color); font-weight: 600; vertical-align: middle; }
+        th { background-color: var(--table-header); font-weight: 800; position: sticky; top: 0; z-index: 10; color: var(--text-muted); }
+        tbody tr:hover { background-color: var(--table-hover); }
+
+        .toggle-calc-btn { width: 100%; margin-bottom: 12px; background: rgba(59, 130, 246, 0.1); color: var(--primary-color); border: 1px dashed var(--primary-color); padding: 6px; min-height: 28px; border-radius: 6px; cursor: pointer; font-family: 'Cairo'; font-weight: 800; font-size: 12px; display: flex; justify-content: center; align-items: center; gap: 6px; transition: 0.3s; } .toggle-calc-btn:hover { background: var(--primary-color); color: white; }
+        
+        .fair-calc-wrapper { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out; }
+        .fair-calc-box { margin-top: 10px; padding: 12px; border-radius: 8px; background: rgba(59, 130, 246, 0.03); border: 1px solid var(--border-color); }
+        
+        .fair-calc-inputs { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 15px; background: var(--table-header); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 20px; }
+        
+        .section-header-flex { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 6px 0; flex-wrap: wrap; gap: 8px; }
+        .section-title { font-size: 11px; font-weight: 800; color: var(--text-color); margin: 0;}
+        .action-links { display: flex; gap: 10px; } .action-link { font-size: 10px; font-weight: 700; cursor: pointer; user-select: none; transition: 0.3s; } .action-link.select { color: var(--primary-color); } .action-link.clear { color: var(--danger-color); } .action-link:hover { opacity: 0.7; }
+        
+        .modern-checklist { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+        .check-pill { background: var(--input-bg); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 12px; cursor: pointer; display: inline-flex; font-size: 11px; font-weight: 800; color: var(--text-muted); user-select: none; transition: 0.2s; } .check-pill:hover { border-color: var(--primary-hover); color: var(--text-color); } .check-pill input[type="checkbox"] { display: none; } .check-pill.active { background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)); border-color: transparent; color: #ffffff; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3); }
+        
+        .fair-share-results { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding: 10px; background: var(--bg-color); border-radius: 6px; border: 1px solid var(--border-color); min-height: 35px; align-items: center; }
+        .share-badge { background: var(--card-bg); padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid var(--border-color); color: var(--text-color); } .share-badge b { color: var(--primary-color); font-size: 12px; }
+        
+        input, select { width: 100%; height: 30px; box-sizing: border-box; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo'; font-size: 11px; font-weight: 700; background-color: var(--input-bg); color: var(--text-color); transition: 0.3s; } input:focus, select:focus { border-color: var(--primary-color); outline: none; }
+        
+        .actions-cell { display: flex; gap: 4px; justify-content: center; align-items: center; }
+        .move-btn, .delete-row-btn { background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 10px; transition: 0.2s; } .move-btn:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .delete-row-btn { background: rgba(225, 29, 72, 0.1); color: var(--danger-color); border-color: rgba(225, 29, 72, 0.2); } .delete-row-btn:hover { background: var(--danger-color); color: white; }
+
+        .action-buttons { display: flex; flex-direction: column; margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--border-color); }
+        button.add-btn { width: 100%; font-family: 'Cairo'; padding: 6px; min-height: 30px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; background-color: rgba(59, 130, 246, 0.05); color: var(--primary-color); border: 1px dashed var(--primary-color); margin-bottom: 12px; transition: 0.3s;} button.add-btn:hover { background-color: rgba(59, 130, 246, 0.15); }
+
+        .export-btns-wrapper { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+        button.submit-btn { flex: 1; min-width: 200px; font-family: 'Cairo'; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--primary-color), #4f46e5); color: #ffffff; font-size: 12px; padding: 8px; border-radius: 6px; border: none; font-weight: 800; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: 0.3s; } button.submit-btn:hover { opacity: 0.9; }
+        
+        .swal2-popup { background-color: var(--card-bg) !important; color: var(--text-color) !important; border: 1px solid var(--border-color) !important; font-family: 'Cairo', sans-serif !important; border-radius: 12px !important; } .swal2-title { color: var(--text-color) !important; font-weight: 800 !important; font-size: 16px !important;} .swal2-html-container { color: var(--text-muted) !important; font-weight: 600 !important; font-size: 12px !important;} .swal2-confirm { font-weight: 800 !important; border-radius: 6px !important; padding: 6px 12px !important; font-size: 12px !important;}
+        
+        .app-footer { text-align: center; padding: 15px 10px; font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-muted); border-top: 1px dashed var(--border-color); margin-top: auto; }
+        .app-footer span { color: var(--primary-color); }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div class="app-header">
+        <div class="header-right">
+            <div class="logo-container"><img src="12345.png" alt="شعار" id="companyLogo" onerror="this.src='12345.jpg'; this.onerror=null;"></div>
+            <h1>منظومة التوزيع الذكية (ERP)</h1>
+        </div>
+        <div class="theme-switch-wrapper"><span style="color: var(--text-muted);">الوضع الليلي</span><label class="theme-switch" for="checkbox"><input type="checkbox" id="checkbox" onchange="toggleTheme()" checked /><div class="slider round"></div></label></div>
+    </div>
+
+    <div class="layout">
+        <div class="sidebar" id="mainSidebar">
+            <h3>إدخال ملفات التوزيع</h3>
+            <div class="file-upload" id="dropZone" onclick="document.getElementById('excelFiles').click()"><p>اضغط أو اسحب الإكسيل هنا</p></div>
+            <input type="file" id="excelFiles" accept=".xlsx" multiple style="display: none;">
+            <div id="selectedFilesText"></div>
+            <div class="file-list-container" id="fileListContainer"><div id="fileItemsList"></div><button class="clear-all-btn" onclick="clearAllFiles()">🗑️ تفريغ الملفات</button></div>
+        </div>
+
+        <div class="main-content" id="mainContentArea">
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('distribute', this, true)">⚙️ لوحة التوزيع</button>
+            </div>
+
+            <div id="distributeTab" class="tab-content active">
+                <div id="summarySection" class="card">
+                    <h3 style="margin-bottom: 12px;">ملخص البيانات المرفوعة</h3>
+                    <div class="dashboard-bar"><div class="dash-item"><span class="dash-label">إجمالي الطلبات</span><span class="dash-val" id="totalNum">0</span></div><div class="dash-item"><span class="dash-label">مكرر/مستبعد</span><span class="dash-val" id="dupNum">0</span></div><div class="dash-item"><span class="dash-label">الصافي المتاح</span><span class="dash-val" id="netNum">0</span></div></div>
+                    <div class="table-responsive"><table id="summaryTable"><thead><tr><th>الشركة</th><th>حالة المراجعة</th><th>العدد المتاح</th></tr></thead><tbody></tbody></table></div>
+                    <button id="toggleCalcBtn" class="toggle-calc-btn" onclick="toggleCalcBox()">⚖️ فتح أداة التوزيع التلقائي الذكي</button>
+                    
+                    <div id="calcWrapper" class="fair-calc-wrapper">
+                        <div class="fair-calc-box">
+                            
+                            <div class="fair-calc-inputs">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="color: var(--text-color); font-size: 12px; font-weight: 800;">المستهدف:</span>
+                                    <input type="number" id="fairTargetInput" placeholder="0" min="0" oninput="debouncedCalculateFairShare()" style="width: 70px; height: 28px; text-align: center; font-size: 13px; font-weight: 800; border: 1px solid var(--primary-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
+                                </div>
+                                
+                                <div style="display: flex; gap: 15px; font-size: 12px; font-weight: 800;">
+                                    <span><span style="color: var(--text-muted);">المراجعين:</span> <b id="fairReviewersCount" style="color: var(--primary-color);">0</b></span>
+                                    <span><span style="color: var(--text-muted);">الإجمالي:</span> <b id="fairTotalRequired" style="color: var(--success-color);">0</b></span>
+                                </div>
+                            </div>
+                            
+                            <div class="section-header-flex"><h4 class="section-title">👥 1. اختر المراجعين:</h4><div class="action-links"><span class="action-link select" onclick="toggleChecklistAll('reviewersChecklistGrid', true)">✓ الكل</span><span class="action-link clear" onclick="toggleChecklistAll('reviewersChecklistGrid', false)">✖ مسح</span></div></div><div class="modern-checklist" id="reviewersChecklistGrid"></div>
+                            
+                            <div class="section-header-flex"><h4 class="section-title">🏢 2. اختر الشركات (سيتم توزيع الأكبر فالأصغر):</h4><div class="action-links"><span class="action-link select" onclick="toggleChecklistAll('companiesChecklistGrid', true)">✓ الكل</span><span class="action-link clear" onclick="toggleChecklistAll('companiesChecklistGrid', false)">✖ مسح</span></div></div><div class="modern-checklist" id="companiesChecklistGrid"></div>
+                            
+                            <div class="section-header-flex"><h4 class="section-title">📊 3. النتيجة المتوقعة لكل مراجع:</h4></div><div id="fairShareResults" class="fair-share-results"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 12px;">إعدادات التوزيع (الجدول النهائي)</h3>
+                    <div class="dashboard-bar"><div class="dash-item"><span class="dash-label">التوزيع الحالي</span><span class="dash-val" id="liveAssigned">0</span></div><div class="dash-item"><span class="dash-label">جاري مراجعة</span><span class="dash-val" id="liveGari">0</span></div><div class="dash-item"><span class="dash-label">تم إعادتها</span><span class="dash-val" id="liveEada">0</span></div></div>
+                    <div class="table-responsive"><table id="rulesTable"><thead><tr><th>اسم المراجع</th><th>العدد</th><th>الشركة</th><th>الحالة</th><th>المحافظة</th><th>الإجراء</th></tr></thead><tbody></tbody></table></div>
+                    <div class="action-buttons">
+                        <button class="add-btn" onclick="addRow()">+ إضافة سطر توزيع يدوي (Manual)</button>
+                        <div class="export-btns-wrapper">
+                            <button class="submit-btn" id="exportBtn" onclick="submitData('assigned')">🚀 تنفيذ التوزيع وإصدار النهائي</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- الفوتر المُضاف بناءً على طلبك -->
+            <div class="app-footer">
+                Developed by <span>mohamed_mondy</span>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    function getFormattedDate() { const d = new Date(); let m = ''+(d.getMonth()+1), day = ''+d.getDate(), y = d.getFullYear(); if(m.length<2)m='0'+m; if(day.length<2)day='0'+day; return [y,m,day].join('-'); }
+    function formatNumber(num) { return num.toLocaleString('en-US'); }
+    function toggleTheme() { document.body.getAttribute('data-theme') === 'dark' ? document.body.removeAttribute('data-theme') : document.body.setAttribute('data-theme', 'dark'); }
+    
+    function switchTab(tabId, el, showSidebar) {
+        document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+        document.getElementById(tabId + 'Tab').classList.add('active'); el.classList.add('active');
+        const sidebar = document.getElementById('mainSidebar'), mainContent = document.getElementById('mainContentArea');
+        if(showSidebar && window.innerWidth > 900) { sidebar.style.display = 'block'; mainContent.classList.remove('full-width'); } 
+        else { sidebar.style.display = 'none'; mainContent.classList.add('full-width'); }
+    }
+
+    function toggleCalcBox() { const w = document.getElementById('calcWrapper'), btn = document.getElementById('toggleCalcBtn'); if (w.style.maxHeight && w.style.maxHeight !== '0px') { w.style.maxHeight = '0px'; btn.innerHTML = '⚖️ فتح أداة التوزيع التلقائي الذكي'; } else { w.style.maxHeight = w.scrollHeight + 500 + 'px'; btn.innerHTML = '✖ إغلاق أداة التوزيع التلقائي'; } }
+
+    let savedFiles = []; window.globalCompanyStats = {}; window.globalSummaryTable = [];
+    const reviewersList = ["يوسف", "ادهم", "كريم", "علي", "مريم", "نيره", "رحمه", "ايه", "زبادي", "عمرو", "ايمان", "عمر جابر", "موندي", "عمر", "مؤمن", "احمد سرحان", "Abo'heiba", "hesham", "روان", "دينا"];
+    let companiesList = ["الكل"], govsList = ["الكل"], statusesList = ["الكل"];
+
+    function buildOptions(arr) { return arr.map(item => `<option value="${item}">${item}</option>`).join(''); }
+    
+    function addRow(r="", c=10, comp="الكل", stat="الكل") { 
+        const table = document.getElementById("rulesTable").getElementsByTagName('tbody')[0]; const newRow = table.insertRow(); 
+        newRow.innerHTML = `<td><select class="reviewer live-trigger">${buildOptions(reviewersList)}</select></td><td><input type="number" class="count live-trigger" value="${c}" min="1" oninput="this.value=Math.abs(this.value)>0?Math.abs(this.value):1"></td><td><select class="company live-trigger">${buildOptions(companiesList)}</select></td><td><select class="status live-trigger">${buildOptions(statusesList)}</select></td><td><select class="gov live-trigger">${buildOptions(govsList)}</select></td><td><div class="actions-cell"><button class="move-btn" onclick="moveRowUp(this)">⬆</button><button class="move-btn" onclick="moveRowDown(this)">⬇</button><button class="delete-row-btn" onclick="deleteRow(this)">✖</button></div></td>`; 
+        if(r) newRow.querySelector('.reviewer').value = r; 
+        if(comp) newRow.querySelector('.company').value = comp; 
+        if(stat) newRow.querySelector('.status').value = stat; 
+        attachLiveEvents(); calculateLiveStats(); 
+    }
+    
+    function deleteRow(btn) { btn.closest('tr').remove(); calculateLiveStats(); }
+    function moveRowUp(btn) { const row = btn.closest('tr'); if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling); }
+    function moveRowDown(btn) { const row = btn.closest('tr'); if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row); }
+    function updateExistingDropdowns() { document.querySelectorAll("#rulesTable tbody tr").forEach(row => { const statusSelect = row.querySelector('.status'), govSelect = row.querySelector('.gov'), companySelect = row.querySelector('.company'); const oldStatus = statusSelect.value, oldGov = govSelect.value, oldComp = companySelect.value; statusSelect.innerHTML = buildOptions(statusesList); govSelect.innerHTML = buildOptions(govsList); companySelect.innerHTML = buildOptions(companiesList); if(statusesList.includes(oldStatus)) statusSelect.value = oldStatus; if(govsList.includes(oldGov)) govSelect.value = oldGov; if(companiesList.includes(oldComp)) companySelect.value = oldComp; }); calculateLiveStats(); }
+    
+    function calculateLiveStats() { 
+        let totalAssigned = 0, totalGari = 0, totalEada = 0; 
+        document.querySelectorAll("#rulesTable tbody tr").forEach(row => { 
+            let count = parseInt(row.querySelector('.count').value) || 0; 
+            let status = row.querySelector('.status').value; 
+            totalAssigned += count; 
+            if (status.includes("جاري") || status === "الكل") if(status.includes("جاري")) totalGari += count; 
+            if (status.includes("اعادة") || status.includes("إعادة")) totalEada += count; 
+        }); 
+        document.getElementById('liveAssigned').innerText = formatNumber(totalAssigned); 
+        document.getElementById('liveGari').innerText = formatNumber(totalGari); 
+        document.getElementById('liveEada').innerText = formatNumber(totalEada); 
+        
+        if (document.getElementById('calcWrapper').style.maxHeight && document.getElementById('calcWrapper').style.maxHeight !== '0px') {
+            debouncedCalculateFairShare();
+        }
+    }
+    
+    function attachLiveEvents() { document.querySelectorAll('.live-trigger').forEach(el => { el.removeEventListener('input', calculateLiveStats); el.removeEventListener('change', calculateLiveStats); el.addEventListener('input', calculateLiveStats); el.addEventListener('change', calculateLiveStats); }); }
+    function toggleChecklistAll(containerId, state) { const container = document.getElementById(containerId); const checkboxes = container.querySelectorAll('input[type="checkbox"]'); checkboxes.forEach(chk => { chk.checked = state; if(state) chk.parentElement.classList.add('active'); else chk.parentElement.classList.remove('active'); }); calculateFairShare(); }
+    function togglePill(chk) { if(chk.checked) chk.parentElement.classList.add('active'); else chk.parentElement.classList.remove('active'); const wrapper = document.getElementById('calcWrapper'); if (wrapper.style.maxHeight && wrapper.style.maxHeight !== '0px') { wrapper.style.maxHeight = wrapper.scrollHeight + 500 + 'px'; } }
+    
+    function updateReviewersChecklist() { const grid = document.getElementById('reviewersChecklistGrid'); if(!grid) return; grid.innerHTML = ''; reviewersList.forEach(name => { grid.innerHTML += `<label class="check-pill"><input type="checkbox" class="reviewer-chk" value="${name}" onchange="togglePill(this); calculateFairShare();">${name}</label>`; }); }
+    function updateCompaniesChecklist() { const grid = document.getElementById('companiesChecklistGrid'); if(!grid) return; grid.innerHTML = ''; for (const comp of Object.keys(window.globalCompanyStats)) { grid.innerHTML += `<label class="check-pill active"><input type="checkbox" class="company-chk" value="${comp}" checked onchange="togglePill(this); calculateFairShare();">${comp}</label>`; } }
+    
+    function getRemainingStock(compName) {
+        if(!window.globalCompanyStats[compName]) return 0;
+        let total = window.globalCompanyStats[compName].count;
+        let assignedSpecifically = 0;
+        document.querySelectorAll("#rulesTable tbody tr").forEach(row => {
+            if(row.querySelector('.company').value === compName || row.querySelector('.company').value === "الكل") {
+                if(row.querySelector('.company').value === compName) {
+                    assignedSpecifically += (parseInt(row.querySelector('.count').value) || 0);
+                }
+            }
+        });
+        return Math.max(0, total - assignedSpecifically);
+    }
+
+    function updateMaxEquitable() {
+        const revCount = document.querySelectorAll('.reviewer-chk:checked').length;
+        const selectedComps = Array.from(document.querySelectorAll('.company-chk:checked')).map(el => el.value);
+        let maxVal = 0;
+        if (revCount > 0) {
+            selectedComps.forEach(comp => {
+                let avail = getRemainingStock(comp);
+                maxVal += Math.floor(avail / revCount);
+            });
+        }
+        return maxVal;
+    }
+
+    function buildDistributionPlan() { 
+        const reviewersCount = document.querySelectorAll('.reviewer-chk:checked').length; 
+        const targetPerReviewer = parseInt(document.getElementById('fairTargetInput').value) || 0; 
+        const totalRequired = reviewersCount * targetPerReviewer; 
+        const selectedComps = Array.from(document.querySelectorAll('.company-chk:checked')).map(el => el.value); 
+
+        let plan = { error: null, validComps: [], excludedComps: [], shares: {}, compAvailable: {} }; 
+        if (targetPerReviewer <= 0 || reviewersCount === 0 || selectedComps.length === 0) return plan; 
+        
+        let totalValidAvailable = 0; 
+        
+        selectedComps.forEach(comp => { 
+            let availableForComp = getRemainingStock(comp); 
+            if (availableForComp >= reviewersCount) { 
+                plan.validComps.push(comp); 
+                totalValidAvailable += availableForComp; 
+                plan.compAvailable[comp] = availableForComp;
+            } else { 
+                plan.excludedComps.push(comp); 
+            } 
+        }); 
+
+        plan.validComps.sort((a, b) => getRemainingStock(b) - getRemainingStock(a)); 
+        
+        if (plan.validComps.length === 0) { plan.error = `<span style="color: var(--danger-color); font-size: 12px; font-weight:800;">❌ الشركات المحددة لا تكفي لتوزيع هذا العدد.</span>`; return plan; } 
+        if (totalRequired > totalValidAvailable) { plan.error = `<span style="color: var(--danger-color); font-size: 12px; font-weight:800;">❌ الخزينة لا تكفي لـ (${formatNumber(totalRequired)})!</span>`; if (plan.excludedComps.length > 0) plan.error += `<br><span style="font-size: 10px; color: var(--warning-color);">⚠️ استبعاد: ${plan.excludedComps.join('، ')}.</span>`; return plan; } 
+        
+        let remainders = []; 
+        plan.validComps.forEach(comp => { 
+            let available = plan.compAvailable[comp]; 
+            let exactShare = targetPerReviewer * (available / totalValidAvailable); 
+            let baseShare = Math.floor(exactShare); 
+            let maxPossibleShare = Math.floor(available / reviewersCount); 
+            if (baseShare > maxPossibleShare) baseShare = maxPossibleShare; 
+            plan.shares[comp] = baseShare; 
+            remainders.push({ comp: comp, rem: exactShare - baseShare, maxShare: maxPossibleShare }); 
+        }); 
+        
+        let currentSum = Object.values(plan.shares).reduce((a, b) => a + b, 0); let needed = targetPerReviewer - currentSum; 
+        remainders.sort((a, b) => b.rem - a.rem); let iters = 0; 
+        while (needed > 0 && iters < 1000) { let gaveAny = false; for (let i = 0; i < remainders.length && needed > 0; i++) { let c = remainders[i].comp; if (plan.shares[c] < remainders[i].maxShare) { plan.shares[c]++; needed--; gaveAny = true; } } if (!gaveAny) break; iters++; } 
+        if (needed > 0) { plan.error = `<span style="color: var(--danger-color); font-size: 12px; font-weight:800;">❌ التركيبة مستحيلة للعدد المتاح.</span>`; plan.shares = {}; } 
+        return plan; 
+    }
+
+    let fairShareTimeout; function debouncedCalculateFairShare() { const input = document.getElementById('fairTargetInput'); if (input.value && input.value < 0) input.value = Math.abs(input.value); clearTimeout(fairShareTimeout); fairShareTimeout = setTimeout(calculateFairShare, 350); }
+    
+    function calculateFairShare() { 
+        const maxVal = updateMaxEquitable(); 
+        const reviewersCount = document.querySelectorAll('.reviewer-chk:checked').length; 
+        const targetPerReviewer = parseInt(document.getElementById('fairTargetInput').value) || 0; 
+
+        document.getElementById('fairReviewersCount').innerText = formatNumber(reviewersCount); document.getElementById('fairTotalRequired').innerText = formatNumber(reviewersCount * targetPerReviewer); 
+        const container = document.getElementById('fairShareResults'); 
+        
+        if (targetPerReviewer <= 0 || reviewersCount === 0) { container.innerHTML = '<span style="color: var(--text-muted); font-size: 11px;">أدخل المستهدف والمراجعين...</span>'; return; } 
+        
+        if (targetPerReviewer > maxVal) {
+            container.innerHTML = `<span style="color: var(--danger-color); font-size: 12px; font-weight:800;">❌ مفيش مخزون يكفي! أقصى عدد عادل لكل مراجع هو ${maxVal} طلب.</span>`; 
+            return;
+        }
+
+        let plan = buildDistributionPlan(); if (plan.error) { container.innerHTML = plan.error; return; } 
+        container.innerHTML = ''; plan.validComps.forEach(comp => { if (plan.shares[comp] > 0) container.innerHTML += `<div class="share-badge">${comp}: <b>${formatNumber(plan.shares[comp])}</b></div>`; }); 
+        if (plan.excludedComps.length > 0) container.innerHTML += `<div style="width: 100%; margin-top: 5px; font-size: 10px; color: var(--warning-color); background: rgba(245, 158, 11, 0.1); padding: 6px; border-radius: 6px;">⚠️ استبعاد: [ ${plan.excludedComps.join('، ')} ].</div>`; 
+    }
+
+    const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('excelFiles'); dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }); dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }); dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handleNewFiles(e.dataTransfer.files); }); fileInput.addEventListener('change', function() { if(this.files.length > 0) { handleNewFiles(this.files); this.value = ''; } });
+    function handleNewFiles(newFiles) { let addedNew = false; Array.from(newFiles).forEach(file => { let exists = savedFiles.find(f => f.name === file.name && f.size === file.size); if (!exists) { savedFiles.push(file); addedNew = true; } }); if (addedNew) { renderFilesList(); fetchSummaryData(); } }
+    function renderFilesList() { const container = document.getElementById('fileListContainer'), listHTML = document.getElementById('fileItemsList'), statusTextDiv = document.getElementById('selectedFilesText'); if (savedFiles.length === 0) { container.style.display = 'none'; statusTextDiv.style.display = 'none'; document.getElementById('summarySection').style.display = 'none'; window.globalCompanyStats = {}; window.globalSummaryTable = []; updateCompaniesChecklist(); calculateFairShare(); calculateLiveStats(); return; } container.style.display = 'block'; statusTextDiv.style.display = 'block'; statusTextDiv.innerHTML = `مرفق (${savedFiles.length}) ملف 📁`; listHTML.innerHTML = ''; savedFiles.forEach((file, index) => { listHTML.innerHTML += `<div class="file-item"><span class="file-name" title="${file.name}">📄 ${file.name}</span><button class="remove-file-btn" onclick="removeFile(${index})">✖</button></div>`; }); }
+    function removeFile(index) { savedFiles.splice(index, 1); renderFilesList(); if (savedFiles.length > 0) fetchSummaryData(); } function clearAllFiles() { savedFiles = []; renderFilesList(); }
+    
+    async function fetchSummaryData() { 
+        const statusTextDiv = document.getElementById('selectedFilesText'); statusTextDiv.innerHTML = `⏳ التحليل...`; 
+        const formData = new FormData(); for (let i = 0; i < savedFiles.length; i++) formData.append("files", savedFiles[i]); 
+        
+        try { 
+            const response = await fetch("/summary", { method: "POST", body: formData }); const data = await response.json(); 
+            if(!response.ok) { Swal.fire({ icon: 'error', title: 'عفواً!', text: 'تأكد من صحة الأعمدة.', confirmButtonColor: '#e11d48' }); statusTextDiv.innerHTML = `❌ خطأ`; return; } 
+            statusTextDiv.innerHTML = `✅ جاهز (${savedFiles.length})`; window.globalCompanyStats = data.company_stats || {}; window.globalSummaryTable = data.summary_table || []; companiesList = ["الكل"].concat(data.companies || []); govsList = ["الكل"].concat(data.govs || []); statusesList = ["الكل"].concat(data.statuses || []); updateExistingDropdowns(); document.getElementById('totalNum').innerText = formatNumber(data.initial_count); document.getElementById('dupNum').innerText = formatNumber(data.duplicate_count); document.getElementById('netNum').innerText = formatNumber(data.net_count); const tbody = document.getElementById('summaryTable').getElementsByTagName('tbody')[0]; tbody.innerHTML = ""; data.summary_table.forEach(row => { let comp = row['الشركة']; let pct = window.globalCompanyStats[comp] ? window.globalCompanyStats[comp].percentage : 0; tbody.innerHTML += `<tr><td><b>${comp}</b> <br><span style="font-size:9px; color:var(--text-muted); background:var(--bg-color); padding:2px 4px; border-radius:4px; display:inline-block; margin-top:3px;">نسبة: ${pct}%</span></td><td><span style="color:var(--primary-color);">${row['حالة المراجعة']}</span></td><td style="color:var(--text-color); font-weight:800; font-size:13px;">${formatNumber(row['العدد المتاح'])}</td></tr>`; }); 
+            document.getElementById('summarySection').style.display = "block"; updateCompaniesChecklist(); calculateFairShare(); calculateLiveStats(); 
+        } catch(e) { Swal.fire({ icon: 'error', title: 'خطأ اتصال', text: 'لا يمكن الاتصال.', confirmButtonColor: '#e11d48' }); } 
+    }
+    
+    async function submitData(mode) { 
+        if (savedFiles.length === 0) { Swal.fire({ icon: 'warning', title: 'لحظة!', text: 'إرفاق ملفات.', confirmButtonColor: '#d97706' }); return; } 
+        const btn = document.getElementById('exportBtn'); const oldText = btn.innerHTML; btn.innerHTML = '⏳ جاري الاستخراج...'; btn.style.opacity = '0.8'; 
+        const rules = []; document.querySelectorAll("#rulesTable tbody tr").forEach(row => { rules.push({ "اسم المراجع": row.querySelector('.reviewer').value, "عدد الطلبات": row.querySelector('.count').value, "الشركة": row.querySelector('.company').value, "الحالة": row.querySelector('.status').value, "المحافظة": row.querySelector('.gov').value }); }); 
+        
+        const formData = new FormData(); for (let i = 0; i < savedFiles.length; i++) formData.append("files", savedFiles[i]); formData.append("rules", JSON.stringify(rules)); formData.append("export_mode", mode); 
+        
+        try { 
+            const response = await fetch("/distribute", { method: "POST", body: formData }); const exclusionNotices = response.headers.get('X-Exclusion-Notices'); 
+            if (!response.ok) { const errorText = await response.text(); Swal.fire({ icon: 'warning', title: 'تنبيه!', html: `<div style="text-align: right; line-height: 1.6; font-size: 13px;">${errorText}</div>`, confirmButtonColor: '#d97706' }); btn.innerHTML = oldText; btn.style.opacity = '1'; return; } 
+            const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.style.display = 'none'; a.href = url; let currentDate = getFormattedDate(); a.download = `توزيع_اليوم_${currentDate}.xlsx`; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); 
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } }); let alertHtml = '<div style="font-size: 12px;">تم تنزيل ملفك بنجاح.</div>'; if (exclusionNotices) { alertHtml += `<br><div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed var(--warning-color); padding: 8px; border-radius: 6px; color: var(--warning-color); font-size: 11px; text-align: right;">⚠️ <b>تنبيه استبعاد:</b><br>${decodeURIComponent(exclusionNotices)}</div>`; } 
+            Swal.fire({ title: 'نجحت! 🚀', html: alertHtml, icon: 'success', confirmButtonColor: '#10b981' }); btn.innerHTML = oldText; btn.style.opacity = '1'; 
+        } catch (error) { Swal.fire({ icon: 'error', title: 'خطأ', text: 'حدث خطأ.', confirmButtonColor: '#e11d48' }); btn.innerHTML = oldText; btn.style.opacity = '1'; } 
+    }
+
+    document.addEventListener('DOMContentLoaded', function() { updateReviewersChecklist(); });
+</script>
+</body>
+</html>
